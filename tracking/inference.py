@@ -263,7 +263,13 @@ class ParticleFilter(InferenceModule):
         Storing your particles as a Counter (where there could be an associated
         weight with each position) is incorrect and may produce errors.
         """
-        "*** YOUR CODE HERE ***"
+        self.particles = []
+        numParticlesLeft = self.numParticles
+        while numParticlesLeft > 0:
+            for p in self.legalPositions:
+                if numParticlesLeft != 0:
+                    self.particles.append(p)
+                    numParticlesLeft -= 1
 
     def observe(self, observation, gameState):
         """
@@ -295,8 +301,23 @@ class ParticleFilter(InferenceModule):
         noisyDistance = observation
         emissionModel = busters.getObservationDistribution(noisyDistance)
         pacmanPosition = gameState.getPacmanPosition()
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        if noisyDistance is None:
+            self.particles = [self.getJailPosition()] * self.numParticles
+        else:
+            current_belief = self.getBeliefDistribution()
+            updated_belief = util.Counter()
+            for p in self.legalPositions:
+                dist = util.manhattanDistance(p, pacmanPosition)
+                updated_belief[p] = updated_belief[p] + emissionModel[dist] * current_belief[p]
+            if not any(updated_belief.values()):
+                self.initializeUniformly(gameState)
+                return
+            new_particles = []
+            for x in range(0, self.numParticles):
+                new_particles.append(util.sample(updated_belief))
+            self.particles = new_particles
+
 
     def elapseTime(self, gameState):
         """
@@ -322,8 +343,11 @@ class ParticleFilter(InferenceModule):
         essentially converts a list of particles into a belief distribution (a
         Counter object)
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        dist = util.Counter()
+        for p in self.particles:
+            dist[p] += 1
+        dist.normalize()
+        return dist
 
 class MarginalInference(InferenceModule):
     """
